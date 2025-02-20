@@ -1,0 +1,1052 @@
+# Get all .txt files from both directories
+$dir1Files = Get-ChildItem "C:\path\to\directory1" -Filter "*.txt"
+$dir2Files = Get-ChildItem "C:\path\to\directory2" -Filter "*.txt"
+ 
+# Compare the files in both directories
+Compare-Object $dir1Files.Name $dir2Files.Name
+ 
+All folder in c drive
+ 
+ # Add table rows
+      foreach ($disk in $filteredData) {
+          $rowClass = if ($disk.UtilizationPercentage -gt 90) { "critical" } elseif ($disk.UtilizationPercentage -gt 70) { "warning" } else { "" }
+          $html += "<tr class='$rowClass'><td>$($disk.MachineName)</td><td>$($disk.DiskDriveLetter)</td><td>$($disk.UsedSpaceGB)</td><td>$($disk.FreeSpaceGB)</td><td>$($disk.UtilizationPercentage)%</td></tr>"
+      }
+      
+ 
+# Define the server names or patterns to search for
+
+$serverFilter = "Server1", "Server2", "Server3" # Add your server names here
+ 
+# Filter the data based on the server names
+
+$filteredServers = $filteredData | Where-Object { $serverFilter -contains $_.MachineName }
+ 
+# Add table rows
+
+foreach ($disk in $filteredServers) {
+
+    $rowClass = if ($disk.UtilizationPercentage -gt 90) { "critical" } elseif ($disk.UtilizationPercentage -gt 70) { "warning" } else { "" }
+
+    $html += "<tr class='$rowClass'><td>$($disk.MachineName)</td><td>$($disk.DiskDriveLetter)</td><td>$($disk.UsedSpaceGB)</td><td>$($disk.FreeSpaceGB)</td><td>$($disk.UtilizationPercentage)%</td></tr>"
+
+}
+
+ 
+# Read CSV file (Assuming it's in the repo or pipeline workspace)
+
+      $csvPath = "C:\minikube\output_disk_memory_cpu_utilization_build (1).csv"
+
+      $diskData = Import-Csv $csvPath
+
+      # Filter only disks above 70% utilization
+
+      $filteredData = $diskData | Where-Object { [int]$_.UtilizationPercentage -gt 70 } | Sort-Object UtilizationPercentage -Descending
+ 
+   # Set threshold for disk usage
+
+$threshold = 70
+
+# Get disk usage details
+
+$disks = Get-PSDrive -PSProvider FileSystem | Where-Object { ($_.Used / $_.Used + $_.Free) * 100 -gt $threshold }
+
+foreach ($disk in $disks) {
+
+    Write-Host "Drive: $($disk.Root) - Usage: $([math]::Round(($disk.Used / ($disk.Used + $disk.Free)) * 100, 2))%"
+
+    # Find the top 10 largest files
+
+    Write-Host "`nTop 10 largest files in $($disk.Root):"
+
+    Get-ChildItem -Path $disk.Root -Recurse -ErrorAction SilentlyContinue |
+
+        Sort-Object Length -Descending |
+
+        Select-Object FullName, Length -First 10 | Format-Table -AutoSize
+
+    # Find top space-consuming folders
+
+    Write-Host "`nTop 5 largest folders in $($disk.Root):"
+
+    Get-ChildItem -Path $disk.Root -Directory -Recurse -ErrorAction SilentlyContinue |
+
+        ForEach-Object {
+
+            $_ | Add-Member -MemberType NoteProperty -Name FolderSize -Value (
+
+                (Get-ChildItem -Path $_.FullName -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+
+            ) -PassThru
+
+        } | Sort-Object FolderSize -Descending |
+
+        Select-Object FullName, FolderSize -First 5 | Format-Table -AutoSize
+
+}
+
+
+      # Get current date and time
+
+      $currentDateTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+
+      # Start HTML content
+
+      $html = @"
+<html>
+<head>
+<title>Disk Utilization Report</title>
+<style>
+
+          table { border-collapse: collapse; width: 100%; }
+
+          th, td { border: 1px solid black; padding: 8px; text-align: left; }
+
+          th { background-color: #f2f2f2;}
+
+          .critical { background-color: #eb4c34; color: white; }
+
+          .warning { background-color: #FFD700; color: black; }
+</style>
+</head>
+<body>
+<h2 style='text-align: center;color: green;'>Disk Utilization Report (Above 70%)</h2>
+<p style='color: blue;'>Report generated on: $currentDateTime</p>
+<table>
+<tr>
+<th>Machine Name</th>
+<th>Drive</th>
+<th>Used Space (GB)</th>
+<th>Free Space (GB)</th>
+<th>Utilization (%)</th>
+</tr>
+
+"@
+
+
+
+      # Add table rows
+
+      foreach ($disk in $filteredData) {
+
+          $rowClass = if ($disk.UtilizationPercentage -ge 90) { "critical" } elseif ($disk.UtilizationPercentage -ge 70) { "warning" } else { "" }
+
+          $html += "<tr class='$rowClass'><td>$($disk.MachineName)</td><td>$($disk.DiskDriveLetter)</td><td>$($disk.UsedSpaceGB)</td><td>$($disk.FreeSpaceGB)</td><td>$($disk.UtilizationPercentage)%</td></tr>"
+
+      }
+
+      # Close HTML tags
+
+      $html += @"
+</table>
+</body>
+</html>
+
+"@
+
+      # Save the HTML report
+
+      $reportPath = "C:\minikube\thivaDiskReport.html"
+
+      $html | Out-File -Encoding utf8 $reportPath
+
+      Write-Host "##vso[task.setvariable variable=ReportPath]$reportPath"
+
+
+ 
+# Read CSV file (Assuming it's in the repo or pipeline workspace)
+
+$csvPath = "C:\minikube\output_disk_memory_cpu_utilization_build (1).csv"
+
+$diskData = Import-Csv $csvPath
+ 
+# Filter only disks above 70% utilization
+
+$filteredData = $diskData | Where-Object { [int]$_.UtilizationPercentage -gt 70 } | Sort-Object UtilizationPercentage -Descending
+ 
+# Define the server names or patterns to search for
+
+$serverFilter = "Server1", "Server2", "Server3" # Add your server names here
+ 
+# Filter the data based on the server names
+
+$filteredServers = $filteredData | Where-Object { $serverFilter -contains $_.MachineName }
+ 
+# Get current date and time
+
+$currentDateTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+ 
+# Start HTML content
+
+$html = @"
+<html>
+<head>
+<title>Disk Utilization Report</title>
+<style>
+
+      table { border-collapse: collapse; width: 100%; }
+
+      th, td { border: 1px solid black; padding: 8px; text-align: left; }
+
+      th { background-color: #f2f2f2;}
+
+      .critical { background-color: #eb4c34; color: white; }
+
+      .warning { background-color: #FFD700; color: black; }
+</style>
+</head>
+<body>
+<h2 style='text-align: center;color: green;'>Disk Utilization Report (Above 70%)</h2>
+<p style='color: blue;'>Report generated on: $currentDateTime</p>
+<table>
+<tr>
+<th>Machine Name</th>
+<th>Drive</th>
+<th>Used Space (GB)</th>
+<th>Free Space (GB)</th>
+<th>Utilization (%)</th>
+</tr>
+
+"@
+ 
+# Add table rows
+
+foreach ($disk in $filteredServers) {
+
+    $rowClass = if ($disk.UtilizationPercentage -ge 90) { "critical" } elseif ($disk.UtilizationPercentage -ge 70) { "warning" } else { "" }
+
+    $html += "<tr class='$rowClass'><td>$($disk.MachineName)</td><td>$($disk.DiskDriveLetter)</td><td>$($disk.UsedSpaceGB)</td><td>$($disk.FreeSpaceGB)</td><td>$($disk.UtilizationPercentage)%</td></tr>"
+
+}
+ 
+# Close HTML tags
+
+$html += @"
+</table>
+</body>
+</html>
+
+"@
+ 
+# Save the HTML report
+
+$reportPath = "C:\minikube\thivaDiskReport.html"
+
+$html | Out-File -Encoding utf8 $reportPath
+ 
+Write-Host "##vso[task.setvariable variable=ReportPath]$reportPath"
+ 
+# Additional disk usage details and largest files/folders reporting
+
+$threshold = 70
+
+$disks = Get-PSDrive -PSProvider FileSystem | Where-Object { ($_.Used / ($_.Used + $_.Free)) * 100 -gt $threshold }
+ 
+foreach ($disk in $disks) {
+
+    Write-Host "Drive: $($disk.Root) - Usage: $([math]::Round(($disk.Used / ($disk.Used + $disk.Free)) * 100, 2))%"
+ 
+    # Find the top 10 largest files
+
+    Write-Host "`nTop 10 largest files in $($disk.Root):"
+
+    Get-ChildItem -Path $disk.Root -Recurse -ErrorAction SilentlyContinue |
+
+        Sort-Object Length -Descending |
+
+        Select-Object FullName, Length -First 10 | Format-Table -AutoSize
+ 
+    # Find top space-consuming folders
+
+    Write-Host "`nTop 5 largest folders in $($disk.Root):"
+
+    Get-ChildItem -Path $disk.Root -Directory -Recurse -ErrorAction SilentlyContinue |
+
+        ForEach-Object {
+
+            $_ | Add-Member -MemberType NoteProperty -Name FolderSize -Value (
+
+                (Get-ChildItem -Path $_.FullName -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+
+            ) -PassThru
+
+        } | Sort-Object FolderSize -Descending |
+
+        Select-Object FullName, FolderSize -First 5 | Format-Table -AutoSize
+
+}
+
+ 
+ # Read CSV file (Assuming it's in the repo or pipeline workspace)
+      $csvPath = "$(Build.ArtifactStagingDirectory)\output_disk_memory_cpu_utilization_build.csv"
+      $diskData = Import-Csv $csvPath
+      
+      # Filter only disks above 70% utilization
+      $filteredData = $diskData | Where-Object { [int]$_.UtilizationPercentage -gt 70 } | Sort-Object UtilizationPercentage -Descending
+      
+      
+      # Get current date and time
+      $currentDateTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+      
+      # Start HTML content
+      $html = @"
+      <html>
+      <head>
+      <title>Disk Utilization Report</title>
+      <style>
+          table { border-collapse: collapse; width: 100%; }
+          th, td { border: 1px solid black; padding: 8px; text-align: left; }
+          th { background-color: #f2f2f2; }
+          .critical { background-color: red; color: white; }
+          .warning { background-color: yellow; color: black; }
+      </style>
+      </head>
+      <body>
+      <h2>Disk Utilization Report (Above 70%)</h2>
+      <p>Report generated on: $currentDateTime</p>
+      <table>
+      <tr>
+      <th>Machine Name</th>
+      <th>Drive</th>
+      <th>Used Space (GB)</th>
+      <th>Free Space (GB)</th>
+      <th>Utilization (%)</th>
+      </tr>
+      "@
+         
+            
+        
+ 
+      
+      # Add table rows
+      foreach ($disk in $filteredData) {
+          $rowClass = if ($disk.UtilizationPercentage -gt 90) { "critical" } elseif ($disk.UtilizationPercentage -gt 70) { "warning" } else { "" }
+          $html += "<tr class='$rowClass'><td>$($disk.MachineName)</td><td>$($disk.DiskDriveLetter)</td><td>$($disk.UsedSpaceGB)</td><td>$($disk.FreeSpaceGB)</td><td>$($disk.UtilizationPercentage)%</td></tr>"
+      }
+      
+      # Close HTML tags
+      $html += @"
+      </table>
+      </body>
+      </html>
+      "@
+      
+      # Save the HTML report
+      $reportPath = "$(Build.ArtifactStagingDirectory)\DiskReport.html"
+      
+      $html | Out-File -Encoding utf8 $reportPath
+      
+      Write-Host "##vso[task.setvariable variable=ReportPath]$reportPath"
+ 
+--------------------------------------------------------------------
+ 
+$csvPath = "$(Build.ArtifactStagingDirectory)\output_disk_memory_cpu_utilization_build.csv"
+      $diskData = Import-Csv $csvPath
+      
+      # Filter only disks above 70% utilization
+      $filteredData = $diskData | Where-Object { [int]$_.UtilizationPercentage -gt 70 } | Sort-Object UtilizationPercentage -Descending
+      
+      
+      # Get current date and time
+      $currentDateTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+      
+      # Start HTML content
+      $html = @"
+      <html>
+      <head>
+      <title>Disk Utilization Report</title>
+      <style>
+          table { border-collapse: collapse; width: 100%; }
+          th, td { border: 1px solid black; padding: 8px; text-align: left; }
+          th { background-color: #f2f2f2; }
+          .critical { background-color: red; color: white; }
+          .warning { background-color: yellow; color: black; }
+      </style>
+      </head>
+      <body>
+      <h2>Disk Utilization Report (Above 70%)</h2>
+      <p>Report generated on: $currentDateTime</p>
+      <table>
+      <tr>
+      <th>Machine Name</th>
+      <th>Drive</th>
+      <th>Used Space (GB)</th>
+      <th>Free Space (GB)</th>
+      <th>Utilization (%)</th>
+      </tr>
+      "@
+         
+            
+        
+ 
+      
+      # Add table rows
+      foreach ($disk in $filteredData) {
+          $rowClass = if ($disk.UtilizationPercentage -gt 90) { "critical" } elseif ($disk.UtilizationPercentage -gt 70) { "warning" } else { "" }
+          $html += "<tr class='$rowClass'><td>$($disk.MachineName)</td><td>$($disk.DiskDriveLetter)</td><td>$($disk.UsedSpaceGB)</td><td>$($disk.FreeSpaceGB)</td><td>$($disk.UtilizationPercentage)%</td></tr>"
+      }
+      
+      # Close HTML tags
+      $html += @"
+      </table>
+      </body>
+      </html>
+      "@
+      
+      # Save the HTML report
+      $reportPath = "$(Build.ArtifactStagingDirectory)\DiskReport.html"
+      
+      $html | Out-File -Encoding utf8 $reportPath
+      
+      Write-Host "##vso[task.setvariable variable=ReportPath]$reportPath"
+      
+    
+ 
+-----------------------------------------------------------------------------------------------------------
+ 
+# Read CSV file (Assuming it's in the repo or pipeline workspace)
+
+      $csvPath = "C:\minikube\output_disk_memory_cpu_utilization_build.csv"
+
+      $diskData = Import-Csv $csvPath
+
+      # Filter only disks above 70% utilization
+
+      $filteredData = $diskData | Where-Object { [int]$_.UtilizationPercentage -gt 70 } | Sort-Object UtilizationPercentage -Descending
+
+
+      # Get current date and time
+
+      $currentDateTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+
+      # Start HTML content
+
+      $html = @"
+<html>
+<head>
+<title>Disk Utilization Report</title>
+<style>
+
+          table { border-collapse: collapse; width: 100%; }
+
+          th, td { border: 1px solid black; padding: 8px; text-align: left; }
+
+          th { background-color: #f2f2f2; }
+
+          .critical { background-color: red; color: white; }
+
+          .warning { background-color: yellow; color: black; }
+</style>
+</head>
+<body>
+<h2>Disk Utilization Report (Above 70%)</h2>
+<p>Report generated on: $currentDateTime</p>
+<table>
+<tr>
+<th>Machine Name</th>
+<th>Drive</th>
+<th>Used Space (GB)</th>
+<th>Free Space (GB)</th>
+<th>Utilization (%)</th>
+</tr>
+
+"@
+
+
+
+      # Add table rows
+
+      foreach ($disk in $filteredData) {
+
+          $rowClass = if ($disk.UtilizationPercentage -gt 90) { "critical" } elseif ($disk.UtilizationPercentage -gt 70) { "warning" } else { "" }
+
+          $html += "<tr class='$rowClass'><td>$($disk.MachineName)</td><td>$($disk.DiskDriveLetter)</td><td>$($disk.UsedSpaceGB)</td><td>$($disk.FreeSpaceGB)</td><td>$($disk.UtilizationPercentage)%</td></tr>"
+
+      }
+
+      # Close HTML tags
+
+      $html += @"
+</table>
+</body>
+</html>
+
+"@
+
+      # Save the HTML report
+
+      $reportPath = "C:\minikube\DiskReportnew1.html"
+
+      $html | Out-File -Encoding utf8 $reportPath
+
+      Write-Host "##vso[task.setvariable variable=ReportPath]$reportPath"
+ 
+<script>
+
+        function filterServers() {
+
+            var input = document.getElementById("serverSearch").value.toUpperCase();
+
+            var table = document.getElementById("diskTable");
+
+            var tr = table.getElementsByTagName("tr");
+
+            for (var i = 1; i < tr.length; i++) {
+
+                var td = tr[i].getElementsByTagName("td")[0];
+
+                if (td) {
+
+                    var txtValue = td.textContent || td.innerText;
+
+                    tr[i].style.display = txtValue.toUpperCase().indexOf(input) > -1 ? "" : "none";
+
+                }
+
+            }
+
+        }
+</script>
+ 
+------------------------------------------------------------------------------------
+ 
+# Set Paths (Assuming CSV is in the pipeline workspace)
+
+$csvPath = "C:\minikube\output_disk_memory_cpu_utilization_build.csv"
+
+$reportPath = "C:\minikube\DiskReportnew1.html"
+ 
+# Check if CSV exists
+
+if (!(Test-Path -Path $csvPath)) {
+
+    Write-Error "CSV file not found at $csvPath"
+
+    exit 1
+
+}
+ 
+# Import CSV and filter
+
+$diskData = Import-Csv -Path $csvPath
+
+$filteredData = $diskData | Where-Object { [int]$_.UtilizationPercentage -gt 70 } | Sort-Object UtilizationPercentage -Descending
+ 
+# Get current date and time
+
+$currentDateTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+ 
+# Start HTML content with additional styles for better UX
+
+$html = @"
+<html>
+<head>
+<title>Disk Utilization Report</title>
+<style>
+
+    body { font-family: Arial, sans-serif; }
+
+    table { border-collapse: collapse; width: 100%; }
+
+    th, td { border: 1px solid black; padding: 8px; text-align: left; }
+
+    th { background-color: #f2f2f2; cursor: pointer; }
+
+    .critical { background-color: red; color: white; }
+
+    .warning { background-color: yellow; color: black; }
+
+    input { margin-bottom: 10px; }
+</style>
+<script>
+
+    function searchTable() {
+
+        let input = document.getElementById('searchInput').value.toLowerCase();
+
+        let rows = document.querySelectorAll('tbody tr');
+
+        rows.forEach(row => {
+
+            row.style.display = row.innerText.toLowerCase().includes(input) ? '' : 'none';
+
+        });
+
+    }
+</script>
+</head>
+<body>
+<h2>Disk Utilization Report (Above 70%)</h2>
+<p>Report generated on: $currentDateTime</p>
+<input type="text" id="searchInput" onkeyup="searchTable()" placeholder="Search for machines...">
+<table>
+<thead>
+<tr>
+<th>Machine Name</th>
+<th>Drive</th>
+<th>Used Space (GB)</th>
+<th>Free Space (GB)</th>
+<th>Utilization (%)</th>
+</tr>
+</thead>
+<tbody>
+
+"@
+ 
+# Populate the table rows
+
+foreach ($disk in $filteredData) {
+
+    $rowClass = if ($disk.UtilizationPercentage -gt 90) { "critical" } elseif ($disk.UtilizationPercentage -gt 70) { "warning" } else { "" }
+
+    $html += "<tr class='$rowClass'>
+<td>$($disk.MachineName)</td>
+<td>$($disk.DiskDriveLetter)</td>
+<td>$($disk.UsedSpaceGB)</td>
+<td>$($disk.FreeSpaceGB)</td>
+<td>$($disk.UtilizationPercentage)%</td>
+</tr>"
+
+}
+ 
+# Close HTML content
+
+$html += @"
+</tbody>
+</table>
+</body>
+</html>
+
+"@
+ 
+# Save the report
+
+$html | Out-File -Path $reportPath -Encoding utf8
+
+Write-Host "HTML report saved to: $reportPath"
+ 
+# Set Azure DevOps variable for the report path
+
+Write-Host "##vso[task.setvariable variable=ReportPath]$reportPath"
+
+ 
+--------------------------------------------------------------------------------------------------------------------------
+ 
+# Read CSV file (Assuming it's in the repo or pipeline workspace)
+
+$csvPath = "C:\minikube\output_disk_memory_cpu_utilization_build.csv"
+
+$diskData = Import-Csv $csvPath
+ 
+# Filter only disks above 70% utilization
+
+$filteredData = $diskData | Where-Object { [int]$_.UtilizationPercentage -gt 70 } | Sort-Object UtilizationPercentage -Descending
+ 
+# Get current date and time
+
+$currentDateTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+ 
+# Start HTML content
+
+$html = @"
+<html>
+<head>
+<title>Disk Utilization Report</title>
+<style>
+
+    body { font-family: Arial, sans-serif; }
+
+    table { border-collapse: collapse; width: 100%; }
+
+    th, td { border: 1px solid black; padding: 8px; text-align: left; }
+
+    th { background-color: #f2f2f2; }
+
+    .critical { background-color: red; color: white; }
+
+    .warning { background-color: yellow; color: black; }
+
+    .search-container { margin-bottom: 10px; }
+</style>
+<script>
+
+    function filterTable() {
+
+        var input, filter, table, tr, td, i, txtValue, select, selectedValue;
+
+        input = document.getElementById("searchInput");
+
+        filter = input.value.toUpperCase();
+
+        table = document.getElementById("diskTable");
+
+        tr = table.getElementsByTagName("tr");
+
+        select = document.getElementById("utilizationFilter");
+
+        selectedValue = select.value;
+ 
+        for (i = 1; i < tr.length; i++) {
+
+            td = tr[i].getElementsByTagName("td");
+
+            if (td.length > 0) {
+
+                var machineName = td[0].textContent || td[0].innerText;
+
+                var drive = td[1].textContent || td[1].innerText;
+
+                var utilization = parseInt(td[4].textContent || td[4].innerText);
+ 
+                var matchesSearch = machineName.toUpperCase().indexOf(filter) > -1 || drive.toUpperCase().indexOf(filter) > -1;
+
+                var matchesFilter = (selectedValue === "all") || 
+
+                                    (selectedValue === "critical" && utilization > 90) || 
+
+                                    (selectedValue === "warning" && utilization > 70 && utilization <= 90);
+ 
+                tr[i].style.display = (matchesSearch && matchesFilter) ? "" : "none";
+
+            }
+
+        }
+
+    }
+</script>
+</head>
+<body>
+<h2>Disk Utilization Report (Above 70%)</h2>
+<p>Report generated on: $currentDateTime</p>
+ 
+<div class="search-container">
+<label for="searchInput">Search:</label>
+<input type="text" id="searchInput" onkeyup="filterTable()" placeholder="Search by Machine or Drive...">
+<label for="utilizationFilter">Filter:</label>
+<select id="utilizationFilter" onchange="filterTable()">
+<option value="all">All</option>
+<option value="critical">Critical (90%+)</option>
+<option value="warning">Warning (70-90%)</option>
+</select>
+</div>
+ 
+<table id="diskTable">
+<tr>
+<th>Machine Name</th>
+<th>Drive</th>
+<th>Used Space (GB)</th>
+<th>Free Space (GB)</th>
+<th>Utilization (%)</th>
+</tr>
+
+"@
+ 
+# Add table rows
+
+foreach ($disk in $filteredData) {
+
+    $rowClass = if ($disk.UtilizationPercentage -gt 90) { "critical" } elseif ($disk.UtilizationPercentage -gt 70) { "warning" } else { "" }
+
+    $html += "<tr class='$rowClass'><td>$($disk.MachineName)</td><td>$($disk.DiskDriveLetter)</td><td>$($disk.UsedSpaceGB)</td><td>$($disk.FreeSpaceGB)</td><td>$($disk.UtilizationPercentage)%</td></tr>"
+
+}
+ 
+# Close HTML tags
+
+$html += @"
+</table>
+</body>
+</html>
+
+"@
+ 
+# Save the HTML report
+
+$reportPath = "C:\minikube\DiskReport_Filtered.html"
+
+$html | Out-File -Encoding utf8 $reportPath
+ 
+# Set the report path as an Azure DevOps variable
+
+Write-Host "##vso[task.setvariable variable=ReportPath]$reportPath"
+
+ 
+----------------------------------------------------------------------------------------------------------------------------
+ 
+# Read CSV file (Assuming it's in the repo or pipeline workspace)
+
+$csvPath = "C:\minikube\output_disk_memory_cpu_utilization_build.csv"
+
+$diskData = Import-Csv $csvPath
+ 
+# Filter only disks above 70% utilization
+
+$filteredData = $diskData | Where-Object { [int]$_.UtilizationPercentage -gt 70 } | Sort-Object UtilizationPercentage -Descending
+ 
+# Get current date and time
+
+$currentDateTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+ 
+# Start HTML content
+
+$html = @"
+<html>
+<head>
+<title>Disk Utilization Report</title>
+<style>
+
+    body { font-family: Arial, sans-serif; }
+
+    table { border-collapse: collapse; width: 100%; }
+
+    th, td { border: 1px solid black; padding: 8px; text-align: left; }
+
+    th { background-color: #f2f2f2; }
+
+    .critical { background-color: red; color: white; }
+
+    .warning { background-color: yellow; color: black; }
+
+    .search-container { margin-bottom: 10px; }
+</style>
+<script>
+
+    function filterTable() {
+
+        var input, filter, table, tr, td, i, txtValue;
+
+        input = document.getElementById("searchInput");
+
+        filter = input.value.toUpperCase();
+
+        table = document.getElementById("diskTable");
+
+        tr = table.getElementsByTagName("tr");
+ 
+        for (i = 1; i < tr.length; i++) { 
+
+            td = tr[i].getElementsByTagName("td")[0]; // Only filtering Machine Name column
+
+            if (td) {
+
+                txtValue = td.textContent || td.innerText;
+
+                tr[i].style.display = txtValue.toUpperCase().indexOf(filter) > -1 ? "" : "none";
+
+            }       
+
+        }
+
+    }
+</script>
+</head>
+<body>
+<h2>Disk Utilization Report (Above 70%)</h2>
+<p>Report generated on: $currentDateTime</p>
+ 
+<div class="search-container">
+<label for="searchInput">Search Server:</label>
+<input type="text" id="searchInput" onkeyup="filterTable()" placeholder="Type to search servers...">
+</div>
+ 
+<table id="diskTable">
+<tr>
+<th>Machine Name</th>
+<th>Drive</th>
+<th>Used Space (GB)</th>
+<th>Free Space (GB)</th>
+<th>Utilization (%)</th>
+</tr>
+
+"@
+ 
+# Add table rows
+
+foreach ($disk in $filteredData) {
+
+    $rowClass = if ($disk.UtilizationPercentage -gt 90) { "critical" } elseif ($disk.UtilizationPercentage -gt 70) { "warning" } else { "" }
+
+    $html += "<tr class='$rowClass'><td>$($disk.MachineName)</td><td>$($disk.DiskDriveLetter)</td><td>$($disk.UsedSpaceGB)</td><td>$($disk.FreeSpaceGB)</td><td>$($disk.UtilizationPercentage)%</td></tr>"
+
+}
+ 
+# Close HTML tags
+
+$html += @"
+</table>
+</body>
+</html>
+
+"@
+ 
+# Save the HTML report
+
+$reportPath = "C:\minikube\DiskReport_Filtered.html"
+
+$html | Out-File -Encoding utf8 $reportPath
+ 
+# Set the report path as an Azure DevOps variable
+
+Write-Host "##vso[task.setvariable variable=ReportPath]$reportPath"
+
+ 
+------------------------------------------------------------------------------
+ 
+# Read CSV file (Assuming it's in the repo or pipeline workspace)
+
+$csvPath = "C:\minikube\output_disk_memory_cpu_utilization_build.csv"
+
+$diskData = Import-Csv $csvPath
+ 
+# Filter only disks above 70% utilization
+
+$filteredData = $diskData | Where-Object { [int]$_.UtilizationPercentage -gt 70 } | Sort-Object UtilizationPercentage -Descending
+ 
+# Get current date and time
+
+$currentDateTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+ 
+# Start HTML content
+
+$html = @"
+<html>
+<head>
+<title>Disk Utilization Report</title>
+<style>
+
+    body { font-family: Arial, sans-serif; }
+
+    table { border-collapse: collapse; width: 100%; }
+
+    th, td { border: 1px solid black; padding: 8px; text-align: left; }
+
+    th { background-color: #f2f2f2; }
+
+    .critical { background-color: red; color: white; }
+
+    .warning { background-color: yellow; color: black; }
+
+    .search-container { margin-bottom: 10px; }
+
+    .marquee-container { 
+
+        width: 100%; 
+
+        overflow: hidden; 
+
+        white-space: nowrap; 
+
+        background-color: #000; 
+
+        color: #fff; 
+
+        padding: 10px;
+
+        font-size: 16px;
+
+        font-weight: bold;
+
+    }
+
+    .marquee-text { 
+
+        display: inline-block; 
+
+        animation: marquee 10s linear infinite; 
+
+    }
+
+    @keyframes marquee {
+
+        from { transform: translateX(100%); }
+
+        to { transform: translateX(-100%); }
+
+    }
+</style>
+<script>
+
+    function filterTable() {
+
+        var input, filter, table, tr, td, i, txtValue;
+
+        input = document.getElementById("searchInput");
+
+        filter = input.value.toUpperCase();
+
+        table = document.getElementById("diskTable");
+
+        tr = table.getElementsByTagName("tr");
+ 
+        for (i = 1; i < tr.length; i++) { 
+
+            td = tr[i].getElementsByTagName("td")[0]; // Only filtering Machine Name column
+
+            if (td) {
+
+                txtValue = td.textContent || td.innerText;
+
+                tr[i].style.display = txtValue.toUpperCase().indexOf(filter) > -1 ? "" : "none";
+
+            }       
+
+        }
+
+    }
+</script>
+</head>
+<body>
+ 
+<!-- Running Line (Marquee Effect) -->
+<div class="marquee-container">
+<span class="marquee-text">This report consists of disk utilization above 70% and was generated on $currentDateTime</span>
+</div>
+ 
+<h2>Disk Utilization Report (Above 70%)</h2>
+ 
+<div class="search-container">
+<label for="searchInput">Search Server:</label>
+<input type="text" id="searchInput" onkeyup="filterTable()" placeholder="Type to search servers...">
+</div>
+ 
+<table id="diskTable">
+<tr>
+<th>Machine Name</th>
+<th>Drive</th>
+<th>Used Space (GB)</th>
+<th>Free Space (GB)</th>
+<th>Utilization (%)</th>
+</tr>
+
+"@
+ 
+# Add table rows
+
+foreach ($disk in $filteredData) {
+
+    $rowClass = if ($disk.UtilizationPercentage -gt 90) { "critical" } elseif ($disk.UtilizationPercentage -gt 70) { "warning" } else { "" }
+
+    $html += "<tr class='$rowClass'><td>$($disk.MachineName)</td><td>$($disk.DiskDriveLetter)</td><td>$($disk.UsedSpaceGB)</td><td>$($disk.FreeSpaceGB)</td><td>$($disk.UtilizationPercentage)%</td></tr>"
+
+}
+ 
+# Close HTML tags
+
+$html += @"
+</table>
+</body>
+</html>
+
+"@
+ 
+# Save the HTML report
+
+$reportPath = "C:\minikube\DiskReport_Filtered.html"
+
+$html | Out-File -Encoding utf8 $reportPath
+ 
+# Set the report path as an Azure DevOps variable
+
+Write-Host "##vso[task.setvariable variable=ReportPath]$reportPath"
+
+ 
